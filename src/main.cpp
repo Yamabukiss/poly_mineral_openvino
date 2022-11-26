@@ -85,9 +85,9 @@ void draw_bboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes,
         cv::line(image,cv::Point((bbox.x4 - effect_roi.x) * width_ratio,(bbox.y4 - effect_roi.y) * height_ratio),cv::Point((bbox.x1 - effect_roi.x) * width_ratio,(bbox.y1 - effect_roi.y) * height_ratio),color,2);
     }
 
-    cv::imshow("output",image);
-    cv::waitKey(0);
-    cv::destroyAllWindows();
+//    cv::imshow("output",image);
+//    cv::waitKey(0);
+//    cv::destroyAllWindows();
 }
 
 int image_demo(PicoDet &detector, const char *imagepath) {
@@ -109,5 +109,9 @@ int main() {
     auto detector = PicoDet("/home/yamabuki/Downloads/picodet_s_processed_benchmark.xml");
     std::cout << "success" << std::endl;
     const char * images="/home/yamabuki/Downloads/5.jpg";
+    auto start = std::chrono::high_resolution_clock::now();
     image_demo(detector, images);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    std::cout << "inference time: " << 1/diff.count() << "fps" << std::endl;
     }
