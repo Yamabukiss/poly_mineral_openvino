@@ -2,9 +2,14 @@
 #define _PICODET_OPENVINO_H_
 
 #include <inference_engine.hpp>
-#include <opencv2/core.hpp>
 #include <string>
-
+#include <iostream>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <sensor_msgs/Image.h>
+#include "ros/ros.h"
+#include <cv_bridge/cv_bridge.h>
 #define image_size 320
 
 typedef struct HeadInfo {
@@ -46,6 +51,12 @@ public:
 
     std::vector<BoxInfo> detect(cv::Mat image, float score_threshold,
                                 float nms_threshold);
+    void receiveFromCam(const sensor_msgs::ImageConstPtr& image);
+    void resize_uniform(cv::Mat &src, cv::Mat &dst,  const cv::Size &dst_size);
+    void draw_bboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes);
+
+    ros::Subscriber img_subscriber;
+    ros::Publisher result_publisher;
 
 private:
     void preprocess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob);
@@ -56,6 +67,7 @@ private:
                          int y, int stride);
     static void nms(std::vector<BoxInfo> &result, float nms_threshold);
     std::string input_name_;
+    cv_bridge::CvImagePtr cv_image_;
     int input_size_ = image_size;
     int num_class_ = 3;
     int reg_max_ = 7;
