@@ -10,7 +10,6 @@ inline float fast_exp(float x) {
   return v.f;
 }
 
-inline float sigmoid(float x) { return 1.0f / (1.0f + fast_exp(-x)); }
 
 template <typename _Tp>
 int activation_function_softmax(const _Tp *src, _Tp *dst, int length) {
@@ -87,11 +86,12 @@ void PicoDet::preprocess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob) {
 std::vector<BoxInfo> PicoDet::detect(cv::Mat image, float score_threshold,
                                      float nms_threshold) {
   InferenceEngine::Blob::Ptr input_blob = infer_request_.GetBlob(input_name_);
-  preprocess(image, input_blob);
 
+  preprocess(image, input_blob);
   // do inference
     infer_request_.StartAsync();
     infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    auto end = std::chrono::high_resolution_clock::now();
 
   // get output
   std::vector<std::vector<BoxInfo>> results;
@@ -149,6 +149,7 @@ void PicoDet::decode_infer(const float *&cls_pred, const float *&dis_pred,
       results[cur_label].push_back(
           this->disPred2Bbox(bbox_pred, cur_label, score, col, row, stride));
     }
+
   }
 }
 
@@ -183,6 +184,7 @@ BoxInfo PicoDet::disPred2Bbox(const float *&dfl_det, int label, float score,
 }
 
 void PicoDet::nms(std::vector<BoxInfo> &input_boxes, float NMS_THRESH) {
+
   std::sort(input_boxes.begin(), input_boxes.end(),
             [](BoxInfo a, BoxInfo b) { return a.score > b.score; });
   std::vector<float> vArea(input_boxes.size());
