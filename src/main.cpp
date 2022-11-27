@@ -18,11 +18,13 @@ void PicoDet::draw_bboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes
 
     for (size_t i = 0; i < bboxes.size(); i++) {
         const BoxInfo &bbox = bboxes[i];
-        cv::Scalar color = cv::Scalar(255,0,0);
+        cv::Scalar color = cv::Scalar(210,100,240);
         cv::line(image,cv::Point((bbox.x1 ) * width_ratio,(bbox.y1 ) * height_ratio),cv::Point((bbox.x2 ) * width_ratio,(bbox.y2 ) * height_ratio),color,2);
         cv::line(image,cv::Point((bbox.x2 ) * width_ratio,(bbox.y2 ) * height_ratio),cv::Point((bbox.x3 ) * width_ratio,(bbox.y3 ) * height_ratio),color,2);
         cv::line(image,cv::Point((bbox.x3 ) * width_ratio,(bbox.y3 ) * height_ratio),cv::Point((bbox.x4 ) * width_ratio,(bbox.y4 ) * height_ratio),color,2);
         cv::line(image,cv::Point((bbox.x4 ) * width_ratio,(bbox.y4 ) * height_ratio),cv::Point((bbox.x1 ) * width_ratio,(bbox.y1 ) * height_ratio),color,2);
+        cv::Point center ((bbox.x1+bbox.x2+bbox.x3+bbox.x4)/4*width_ratio,(bbox.y1+bbox.y2+bbox.y3+bbox.y4)/4*height_ratio);
+        cv::circle(image,center,3,color,3);
     }
 
     result_publisher.publish(cv_bridge::CvImage(std_msgs::Header(),cv_image_->encoding , image).toImageMsg());
@@ -47,9 +49,9 @@ int main(int argc, char **argv) {
     ros::NodeHandle nh;
 
     std::cout << "start init model" << std::endl;
-    auto detector = PicoDet("/home/yamabuki/Downloads/picodet_s_processed_benchmark.xml");
+    auto detector = PicoDet("/home/yamabuki/Downloads/picodet_s_processed.xml");
     std::cout << "success" << std::endl;
-    detector.img_subscriber= nh.subscribe("/galaxy_camera/image_raw", 1, &PicoDet::receiveFromCam,&detector);
+    detector.img_subscriber= nh.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,&detector);
     detector.result_publisher = nh.advertise<sensor_msgs::Image>("result_publisher", 1);
     while (ros::ok())
     {

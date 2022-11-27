@@ -69,7 +69,7 @@ private:
     std::string input_name_;
     cv_bridge::CvImagePtr cv_image_;
     int input_size_ = image_size;
-    int num_class_ = 3;
+    int num_class_ = 2;
     int reg_max_ = 7;
 };
 

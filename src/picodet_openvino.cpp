@@ -177,7 +177,7 @@ BoxInfo PicoDet::disPred2Bbox(const float *&dfl_det, int label, float score,
   float y2 = (std::max)(ct_y - dis_pred[3], .0f);
 
   float x3 = (std::min)(ct_x + dis_pred[4], (float)this->input_size_);
-  float y3 = (std::min)(ct_x + dis_pred[5], (float)this->input_size_);
+  float y3 = (std::min)(ct_y + dis_pred[5], (float)this->input_size_);
   float x4 = (std::max)(ct_x - dis_pred[6], .0f);
   float y4 = (std::min)(ct_y + dis_pred[7], (float)this->input_size_);
   return BoxInfo{x1 , y1 , x2 , y2 , x3 , y3 , x4 , y4 , score , label };
