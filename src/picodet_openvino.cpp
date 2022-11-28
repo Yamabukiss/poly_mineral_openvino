@@ -60,40 +60,32 @@ void PicoDet::onInit()
     kalmanFilter_p2_.init(4,2,0);
     kalmanFilter_p3_.init(4,2,0);
     kalmanFilter_p4_.init(4,2,0);
-    kalmanFilter_p1_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
+    transition_matrix_=(cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
             0, 1, 0, 1,
             0, 0, 1, 0,
             0, 0, 0, 1);
+    kalmanFilter_p1_.transitionMatrix = transition_matrix_;
     
     cv::setIdentity(kalmanFilter_p1_.measurementMatrix);
     cv::setIdentity(kalmanFilter_p1_.processNoiseCov, cv::Scalar::all(1e-5));
     cv::setIdentity(kalmanFilter_p1_.measurementNoiseCov, cv::Scalar::all(1e-1));
     cv::setIdentity(kalmanFilter_p1_.errorCovPost, cv::Scalar::all(1));
     
-    kalmanFilter_p2_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
-            0, 1, 0, 1,
-            0, 0, 1, 0,
-            0, 0, 0, 1);
+    kalmanFilter_p2_.transitionMatrix = transition_matrix_;
     
     cv::setIdentity(kalmanFilter_p2_.measurementMatrix);
     cv::setIdentity(kalmanFilter_p2_.processNoiseCov, cv::Scalar::all(1e-5));
     cv::setIdentity(kalmanFilter_p2_.measurementNoiseCov, cv::Scalar::all(1e-1));
     cv::setIdentity(kalmanFilter_p2_.errorCovPost, cv::Scalar::all(1));
     
-    kalmanFilter_p3_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
-            0, 1, 0, 1,
-            0, 0, 1, 0,
-            0, 0, 0, 1);
+    kalmanFilter_p3_.transitionMatrix = transition_matrix_;
     
     cv::setIdentity(kalmanFilter_p3_.measurementMatrix);
     cv::setIdentity(kalmanFilter_p3_.processNoiseCov, cv::Scalar::all(1e-5));
     cv::setIdentity(kalmanFilter_p3_.measurementNoiseCov, cv::Scalar::all(1e-1));
     cv::setIdentity(kalmanFilter_p3_.errorCovPost, cv::Scalar::all(1));
     
-    kalmanFilter_p4_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
-            0, 1, 0, 1,
-            0, 0, 1, 0,
-            0, 0, 0, 1);
+    kalmanFilter_p4_.transitionMatrix = transition_matrix_;
     
     cv::setIdentity(kalmanFilter_p4_.measurementMatrix);
     cv::setIdentity(kalmanFilter_p4_.processNoiseCov, cv::Scalar::all(1e-5));
