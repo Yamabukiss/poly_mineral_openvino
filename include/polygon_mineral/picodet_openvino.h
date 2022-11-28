@@ -61,8 +61,6 @@ public:
 
     void drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes);
 
-    void updateKalmen(const cv::Point &p1, const cv::Point &p2, const cv::Point &p3, const cv::Point &p4);
-
     void dynamicCallback(polygon_mineral::dynamicConfig &config);
 
     void preProcess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob);
@@ -70,31 +68,22 @@ public:
     void decodeInfer(const float *&cls_pred, const float *&dis_pred, int stride,
                      double threshold,
                      std::vector<std::vector<BoxInfo>> &results);
+    std::vector<cv::Point> pointAssignment(const std::vector<cv::Point> &frame_points,const std::vector<std::vector<cv::Point>> &last_frame_points_saver);
 
     BoxInfo disPred2Bbox(const float *&dfl_det, int label, double score, int x,
                          int y, int stride);
 
     static void nms(std::vector<BoxInfo> &result, float nms_threshold);
 
-//    cv::Mat_<float> process_noise_matrix_;
-//    cv::Mat_<float> measure_noise_matrix_;
-    cv::Mat measurement_;
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig> server_;
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig>::CallbackType callback_;
+    std::vector<std::vector<cv::Point>> last_frame_points_vec_;
     double nms_thresh_;
     double score_thresh_;
-    int measure_noise_=1;
-    int process_noise_=5;
-    cv::Mat_<float> transition_matrix_;
-//    cv::Mat_<float> measurement_matrix_;
-//    cv::Mat_<float> error_cov_;
+    double delay_;
     std::string input_name_;
     cv_bridge::CvImagePtr cv_image_;
     ros::NodeHandle nh_;
-    cv::KalmanFilter kalmanFilter_p1_;
-    cv::KalmanFilter kalmanFilter_p2_;
-    cv::KalmanFilter kalmanFilter_p3_;
-    cv::KalmanFilter kalmanFilter_p4_;
     ros::Subscriber img_subscriber_;
     ros::Publisher result_publisher_;
     int input_size_ = image_size;

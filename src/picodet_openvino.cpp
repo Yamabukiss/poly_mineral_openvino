@@ -56,43 +56,6 @@ void PicoDet::onInit()
     network_ = ie.LoadNetwork(model, "CPU",config);
     infer_request_ = network_.CreateInferRequest();
 
-    kalmanFilter_p1_.init(4,2,0);
-    kalmanFilter_p2_.init(4,2,0);
-    kalmanFilter_p3_.init(4,2,0);
-    kalmanFilter_p4_.init(4,2,0);
-    transition_matrix_=(cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
-            0, 1, 0, 1,
-            0, 0, 1, 0,
-            0, 0, 0, 1);
-    kalmanFilter_p1_.transitionMatrix = transition_matrix_;
-    
-    cv::setIdentity(kalmanFilter_p1_.measurementMatrix);
-    cv::setIdentity(kalmanFilter_p1_.processNoiseCov, cv::Scalar::all(1e-5));
-    cv::setIdentity(kalmanFilter_p1_.measurementNoiseCov, cv::Scalar::all(1e-1));
-    cv::setIdentity(kalmanFilter_p1_.errorCovPost, cv::Scalar::all(1));
-    
-    kalmanFilter_p2_.transitionMatrix = transition_matrix_;
-    
-    cv::setIdentity(kalmanFilter_p2_.measurementMatrix);
-    cv::setIdentity(kalmanFilter_p2_.processNoiseCov, cv::Scalar::all(1e-5));
-    cv::setIdentity(kalmanFilter_p2_.measurementNoiseCov, cv::Scalar::all(1e-1));
-    cv::setIdentity(kalmanFilter_p2_.errorCovPost, cv::Scalar::all(1));
-    
-    kalmanFilter_p3_.transitionMatrix = transition_matrix_;
-    
-    cv::setIdentity(kalmanFilter_p3_.measurementMatrix);
-    cv::setIdentity(kalmanFilter_p3_.processNoiseCov, cv::Scalar::all(1e-5));
-    cv::setIdentity(kalmanFilter_p3_.measurementNoiseCov, cv::Scalar::all(1e-1));
-    cv::setIdentity(kalmanFilter_p3_.errorCovPost, cv::Scalar::all(1));
-    
-    kalmanFilter_p4_.transitionMatrix = transition_matrix_;
-    
-    cv::setIdentity(kalmanFilter_p4_.measurementMatrix);
-    cv::setIdentity(kalmanFilter_p4_.processNoiseCov, cv::Scalar::all(1e-5));
-    cv::setIdentity(kalmanFilter_p4_.measurementNoiseCov, cv::Scalar::all(1e-1));
-    cv::setIdentity(kalmanFilter_p4_.errorCovPost, cv::Scalar::all(1));
-    
-    measurement_ = cv::Mat::ones(2, 1, CV_32F); //kalmen filter init measurement value
     img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
     result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
 
@@ -105,50 +68,12 @@ PicoDet::PicoDet() {}
 
 void PicoDet::dynamicCallback(polygon_mineral::dynamicConfig &config)
 {
-    process_noise_=config.process_noise;
-    measure_noise_=config.measure_noise;
     nms_thresh_=config.nms_thresh;
     score_thresh_=config.score_thresh;
+    delay_=config.delay;
     ROS_INFO("Seted Complete");
 }
 
-void PicoDet::updateKalmen(const cv::Point &p1,const cv::Point &p2,const cv::Point &p3,const cv::Point &p4)
-{
-
-    cv::setIdentity(kalmanFilter_p1_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
-    cv::setIdentity(kalmanFilter_p1_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
-
-    cv::setIdentity(kalmanFilter_p2_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
-    cv::setIdentity(kalmanFilter_p2_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
-
-    cv::setIdentity(kalmanFilter_p3_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
-    cv::setIdentity(kalmanFilter_p3_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
-
-    cv::setIdentity(kalmanFilter_p4_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
-    cv::setIdentity(kalmanFilter_p4_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
-
-
-    kalmanFilter_p1_.predict();
-    measurement_.at<float>(0)=p1.x;
-    measurement_.at<float>(1)=p1.y;
-    kalmanFilter_p1_.correct(measurement_);
-
-    kalmanFilter_p2_.predict();
-    measurement_.at<float>(0)=p2.x;
-    measurement_.at<float>(1)=p2.y;
-    kalmanFilter_p2_.correct(measurement_);
-
-    kalmanFilter_p3_.predict();
-    measurement_.at<float>(0)=p3.x;
-    measurement_.at<float>(1)=p3.y;
-    kalmanFilter_p3_.correct(measurement_);
-
-    kalmanFilter_p4_.predict();
-    measurement_.at<float>(0)=p4.x;
-    measurement_.at<float>(1)=p4.y;
-    kalmanFilter_p4_.correct(measurement_);
-
-}
 
 PicoDet::~PicoDet() {}
 
@@ -175,6 +100,32 @@ void PicoDet::preProcess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob) {
       }
     }
   }
+}
+
+std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &frame_points,const std::vector<std::vector<cv::Point>> &last_frame_points_saver)
+{
+//    return frame_points;
+    if (last_frame_points_saver.empty()) return frame_points;
+    else
+    {
+        std::vector<int> l2_distance_vec;
+        for (auto last_points : last_frame_points_saver)
+        {
+            l2_distance_vec.emplace_back(sqrt(pow(frame_points[0].x-last_points[0].x,2) + pow(frame_points[0].y-last_points[0].y,2)));
+        }
+        auto min_iter = std::min_element(l2_distance_vec.begin(),l2_distance_vec.end());
+        int min_index=std::distance(std::begin(l2_distance_vec), min_iter) ;
+
+        std::vector<cv::Point> matched_points=last_frame_points_saver[min_index];
+
+        std::vector<cv::Point> result_points;
+        for (int i = 0;i < 5;i++)
+        {
+            cv::Point added_weights_point  (matched_points[i].x * (1-delay_) + frame_points[i].x * delay_ , matched_points[i].y * (1-delay_) + frame_points[i].y * delay_);
+            result_points.emplace_back(added_weights_point);
+        }
+        return result_points;
+    }
 }
 
 std::vector<BoxInfo> PicoDet::detect(cv::Mat image, double score_threshold,
