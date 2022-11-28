@@ -108,7 +108,7 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
     if (last_frame_points_saver.empty()) return frame_points;
     else
     {
-        std::vector<int> l2_distance_vec;
+        static std::vector<int> l2_distance_vec;
         for (auto last_points : last_frame_points_saver)
         {
             l2_distance_vec.emplace_back(sqrt(pow(frame_points[0].x-last_points[0].x,2) + pow(frame_points[0].y-last_points[0].y,2)));
@@ -116,7 +116,8 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
         auto min_iter = std::min_element(l2_distance_vec.begin(),l2_distance_vec.end());
         int min_index=std::distance(std::begin(l2_distance_vec), min_iter) ;
 
-        std::vector<cv::Point> matched_points=last_frame_points_saver[min_index];
+        static std::vector<cv::Point> matched_points;
+        matched_points=last_frame_points_saver[min_index];
 
         std::vector<cv::Point> result_points;
         for (int i = 0;i < 5;i++)
@@ -124,6 +125,8 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
             cv::Point added_weights_point  (matched_points[i].x * (1-delay_) + frame_points[i].x * delay_ , matched_points[i].y * (1-delay_) + frame_points[i].y * delay_);
             result_points.emplace_back(added_weights_point);
         }
+        l2_distance_vec.clear();
+        matched_points.clear();
         return result_points;
     }
 }
@@ -175,8 +178,8 @@ std::vector<BoxInfo> PicoDet::detect(cv::Mat image, double score_threshold,
 void PicoDet::decodeInfer(const float *&cls_pred, const float *&dis_pred,
                            int stride, double threshold,
                            std::vector<std::vector<BoxInfo>> &results) {
-  int feature_h = ceil((float)input_size_ / stride);
-  int feature_w = ceil((float)input_size_ / stride);
+  int feature_h = ceil((float)image_size_ / stride);
+  int feature_w = ceil((float)image_size_ / stride);
   for (int idx = 0; idx < feature_h * feature_w; idx++) {
     int row = idx / feature_w;
     int col = idx % feature_w;
@@ -198,6 +201,14 @@ void PicoDet::decodeInfer(const float *&cls_pred, const float *&dis_pred,
   }
 }
 
+void PicoDet::resizeUniform(cv::Mat &src, cv::Mat &dst, const cv::Size &dst_size){
+    int dst_w = dst_size.width;
+    int dst_h = dst_size.height;
+    dst = cv::Mat(cv::Size(dst_w, dst_h), CV_8UC3, cv::Scalar(0));
+    cv::resize(src,dst,cv::Size(dst_w,dst_h),0,0,1);
+}
+
+
 BoxInfo PicoDet::disPred2Bbox(const float *&dfl_det, int label, double score,
                               int x, int y, int stride) {
   float ct_x = (x + 0.5) * stride;
@@ -218,13 +229,13 @@ BoxInfo PicoDet::disPred2Bbox(const float *&dfl_det, int label, double score,
   }
   float x1 = (std::max)(ct_x - dis_pred[0], .0f);
   float y1 = (std::max)(ct_y - dis_pred[1], .0f);
-  float x2 = (std::min)(ct_x + dis_pred[2], (float)this->input_size_);
+  float x2 = (std::min)(ct_x + dis_pred[2], (float)this->image_size_);
   float y2 = (std::max)(ct_y - dis_pred[3], .0f);
 
-  float x3 = (std::min)(ct_x + dis_pred[4], (float)this->input_size_);
-  float y3 = (std::min)(ct_y + dis_pred[5], (float)this->input_size_);
+  float x3 = (std::min)(ct_x + dis_pred[4], (float)this->image_size_);
+  float y3 = (std::min)(ct_y + dis_pred[5], (float)this->image_size_);
   float x4 = (std::max)(ct_x - dis_pred[6], .0f);
-  float y4 = (std::min)(ct_y + dis_pred[7], (float)this->input_size_);
+  float y4 = (std::min)(ct_y + dis_pred[7], (float)this->image_size_);
   return BoxInfo{x1 , y1 , x2 , y2 , x3 , y3 , x4 , y4 , score , label };
 }
 

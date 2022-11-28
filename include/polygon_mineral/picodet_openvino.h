@@ -11,7 +11,6 @@
 #include <dynamic_reconfigure/server.h>
 #include <polygon_mineral/dynamicConfig.h>
 
-#define image_size 320
 
 typedef struct HeadInfo {
     std::string cls_layer;
@@ -86,8 +85,8 @@ public:
     ros::NodeHandle nh_;
     ros::Subscriber img_subscriber_;
     ros::Publisher result_publisher_;
-    int input_size_ = image_size;
     int num_class_ = 4;
     int reg_max_ = 7;
+    int image_size_ = 320;
 };
 #endif

@@ -1,22 +1,14 @@
 #include "polygon_mineral/picodet_openvino.h"
 
-#define image_size 320
-
-void PicoDet::resizeUniform(cv::Mat &src, cv::Mat &dst, const cv::Size &dst_size){
-    int dst_w = dst_size.width;
-    int dst_h = dst_size.height;
-    dst = cv::Mat(cv::Size(dst_w, dst_h), CV_8UC3, cv::Scalar(0));
-    cv::resize(src,dst,cv::Size(dst_w,dst_h),0,0,1);
-}
-
 
 
 void PicoDet::drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes) {
     cv::Mat image = bgr.clone();
-    int src_w = image.cols;
-    int src_h = image.rows;
-    float width_ratio = (float)src_w / (float)image_size;
-    float height_ratio = (float)src_h / (float)image_size;
+    std::string label_array[4]={"mineral","solid","blue","red"};
+    static int src_w = image.cols;
+    static int src_h = image.rows;
+    static float width_ratio = (float)src_w / (float)image_size_;
+    static float height_ratio = (float)src_h / (float)image_size_;
     if (!bboxes.empty())
     {
         static std::vector<std::vector<cv::Point>> last_frame_points_saver;
@@ -42,13 +34,13 @@ void PicoDet::drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes)
             std::vector<cv::Point> added_weights_points=pointAssignment(points_vec,last_frame_points_saver);
             last_frame_points_vec_.emplace_back(added_weights_points);
 
-            static cv::Scalar color = cv::Scalar(210,100,240);
+            static cv::Scalar color = cv::Scalar(250,51,153);
             cv::line(image,added_weights_points[1],added_weights_points[2],color,3);
             cv::line(image,added_weights_points[2],added_weights_points[3],color,3);
             cv::line(image,added_weights_points[3],added_weights_points[4],color,3);
             cv::line(image,added_weights_points[4],added_weights_points[1],color,3);
             cv::circle(image,added_weights_points[0],3,color,3);
-
+            cv::putText(image,label_array[bbox.label],cv::Point(std::max(0,added_weights_points[1].x-10),std::max(added_weights_points[1].y-10,0)),cv::FONT_HERSHEY_SCRIPT_SIMPLEX,2,color);
     }
     last_frame_points_saver.clear();
     }
@@ -67,7 +59,7 @@ void PicoDet::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
     cv_image_ = boost::make_shared<cv_bridge::CvImage>(*cv_bridge::toCvShare(image, image->encoding));
     cv::Mat resized_img;
 
-    resizeUniform(cv_image_->image, resized_img, cv::Size(image_size, image_size));
+    resizeUniform(cv_image_->image, resized_img, cv::Size(image_size_, image_size_));
 
     auto results = detect(resized_img, score_thresh_, nms_thresh_);
     drawBboxes(cv_image_->image, results);
