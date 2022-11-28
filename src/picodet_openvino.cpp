@@ -28,37 +28,139 @@ int activation_function_softmax(const _Tp *src, _Tp *dst, int length) {
   return 0;
 }
 
-PicoDet::PicoDet(const char *model_path) {
-  InferenceEngine::Core ie;
-  InferenceEngine::CNNNetwork model = ie.ReadNetwork(model_path);
-  // prepare input settings
-  InferenceEngine::InputsDataMap inputs_map(model.getInputsInfo());
-  input_name_ = inputs_map.begin()->first;
-  InferenceEngine::InputInfo::Ptr input_info = inputs_map.begin()->second;
-  // prepare output settings
-  InferenceEngine::OutputsDataMap outputs_map(model.getOutputsInfo());
+void PicoDet::onInit()
+{
+    InferenceEngine::Core ie;
+    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed4.xml");
+    // prepare input settings
+    InferenceEngine::InputsDataMap inputs_map(model.getInputsInfo());
+    input_name_ = inputs_map.begin()->first;
+    InferenceEngine::InputInfo::Ptr input_info = inputs_map.begin()->second;
+    // prepare output settings
+    InferenceEngine::OutputsDataMap outputs_map(model.getOutputsInfo());
 
-  for (auto &output_info : outputs_map) {
-    output_info.second->setPrecision(InferenceEngine::Precision::FP32);
-  }
+    for (auto &output_info : outputs_map) {
+        output_info.second->setPrecision(InferenceEngine::Precision::FP32);
+    }
 
-  std::map<std::string, std::string> config = {
-          { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO },
-          { InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NUMA },
-          { InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-            InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA },
-            { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" },
-  };
+    std::map<std::string, std::string> config = {
+            { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO },
+            { InferenceEngine::PluginConfigParams::KEY_CPU_BIND_THREAD, InferenceEngine::PluginConfigParams::NUMA },
+            { InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
+                    InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA },
+//            { InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, "16" },
+    };
 
 
     // get network
-  network_ = ie.LoadNetwork(model, "CPU",config);
-  infer_request_ = network_.CreateInferRequest();
+    network_ = ie.LoadNetwork(model, "CPU",config);
+    infer_request_ = network_.CreateInferRequest();
+
+    kalmanFilter_p1_.init(4,2,0);
+    kalmanFilter_p2_.init(4,2,0);
+    kalmanFilter_p3_.init(4,2,0);
+    kalmanFilter_p4_.init(4,2,0);
+    kalmanFilter_p1_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    
+    cv::setIdentity(kalmanFilter_p1_.measurementMatrix);
+    cv::setIdentity(kalmanFilter_p1_.processNoiseCov, cv::Scalar::all(1e-5));
+    cv::setIdentity(kalmanFilter_p1_.measurementNoiseCov, cv::Scalar::all(1e-1));
+    cv::setIdentity(kalmanFilter_p1_.errorCovPost, cv::Scalar::all(1));
+    
+    kalmanFilter_p2_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    
+    cv::setIdentity(kalmanFilter_p2_.measurementMatrix);
+    cv::setIdentity(kalmanFilter_p2_.processNoiseCov, cv::Scalar::all(1e-5));
+    cv::setIdentity(kalmanFilter_p2_.measurementNoiseCov, cv::Scalar::all(1e-1));
+    cv::setIdentity(kalmanFilter_p2_.errorCovPost, cv::Scalar::all(1));
+    
+    kalmanFilter_p3_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    
+    cv::setIdentity(kalmanFilter_p3_.measurementMatrix);
+    cv::setIdentity(kalmanFilter_p3_.processNoiseCov, cv::Scalar::all(1e-5));
+    cv::setIdentity(kalmanFilter_p3_.measurementNoiseCov, cv::Scalar::all(1e-1));
+    cv::setIdentity(kalmanFilter_p3_.errorCovPost, cv::Scalar::all(1));
+    
+    kalmanFilter_p4_.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+    
+    cv::setIdentity(kalmanFilter_p4_.measurementMatrix);
+    cv::setIdentity(kalmanFilter_p4_.processNoiseCov, cv::Scalar::all(1e-5));
+    cv::setIdentity(kalmanFilter_p4_.measurementNoiseCov, cv::Scalar::all(1e-1));
+    cv::setIdentity(kalmanFilter_p4_.errorCovPost, cv::Scalar::all(1));
+    
+    measurement_ = cv::Mat::ones(2, 1, CV_32F); //kalmen filter init measurement value
+    img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
+    result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
+
+    callback_ = boost::bind(&PicoDet::dynamicCallback, this, _1);
+    server_.setCallback(callback_);
+
+}
+
+PicoDet::PicoDet() {}
+
+void PicoDet::dynamicCallback(polygon_mineral::dynamicConfig &config)
+{
+    process_noise_=config.process_noise;
+    measure_noise_=config.measure_noise;
+    nms_thresh_=config.nms_thresh;
+    score_thresh_=config.score_thresh;
+    ROS_INFO("Seted Complete");
+}
+
+void PicoDet::updateKalmen(const cv::Point &p1,const cv::Point &p2,const cv::Point &p3,const cv::Point &p4)
+{
+
+    cv::setIdentity(kalmanFilter_p1_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
+    cv::setIdentity(kalmanFilter_p1_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
+
+    cv::setIdentity(kalmanFilter_p2_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
+    cv::setIdentity(kalmanFilter_p2_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
+
+    cv::setIdentity(kalmanFilter_p3_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
+    cv::setIdentity(kalmanFilter_p3_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
+
+    cv::setIdentity(kalmanFilter_p4_.processNoiseCov, cv::Scalar::all(pow(10,-process_noise_)));
+    cv::setIdentity(kalmanFilter_p4_.measurementNoiseCov, cv::Scalar::all(pow(10,-measure_noise_)));
+
+
+    kalmanFilter_p1_.predict();
+    measurement_.at<float>(0)=p1.x;
+    measurement_.at<float>(1)=p1.y;
+    kalmanFilter_p1_.correct(measurement_);
+
+    kalmanFilter_p2_.predict();
+    measurement_.at<float>(0)=p2.x;
+    measurement_.at<float>(1)=p2.y;
+    kalmanFilter_p2_.correct(measurement_);
+
+    kalmanFilter_p3_.predict();
+    measurement_.at<float>(0)=p3.x;
+    measurement_.at<float>(1)=p3.y;
+    kalmanFilter_p3_.correct(measurement_);
+
+    kalmanFilter_p4_.predict();
+    measurement_.at<float>(0)=p4.x;
+    measurement_.at<float>(1)=p4.y;
+    kalmanFilter_p4_.correct(measurement_);
+
 }
 
 PicoDet::~PicoDet() {}
 
-void PicoDet::preprocess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob) {
+void PicoDet::preProcess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob) {
   int img_w = image.cols;
   int img_h = image.rows;
   int channels = 3;
@@ -83,15 +185,15 @@ void PicoDet::preprocess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob) {
   }
 }
 
-std::vector<BoxInfo> PicoDet::detect(cv::Mat image, float score_threshold,
-                                     float nms_threshold) {
+std::vector<BoxInfo> PicoDet::detect(cv::Mat image, double score_threshold,
+                                     double nms_threshold) {
   InferenceEngine::Blob::Ptr input_blob = infer_request_.GetBlob(input_name_);
 
-  preprocess(image, input_blob);
+  preProcess(image, input_blob);
   // do inference
-    infer_request_.StartAsync();
-    infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    auto end = std::chrono::high_resolution_clock::now();
+  infer_request_.StartAsync();
+  infer_request_.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+  auto end = std::chrono::high_resolution_clock::now();
 
   // get output
   std::vector<std::vector<BoxInfo>> results;
@@ -112,7 +214,7 @@ std::vector<BoxInfo> PicoDet::detect(cv::Mat image, float score_threshold,
         InferenceEngine::as<InferenceEngine::MemoryBlob>(cls_pred_blob);
     auto mcls_pred_holder = mcls_pred->rmap();
     const float *cls_pred = mcls_pred_holder.as<const float *>();
-    this->decode_infer(cls_pred, dis_pred, head_info.stride, score_threshold,
+    this->decodeInfer(cls_pred, dis_pred, head_info.stride, score_threshold,
                        results);
   }
 
@@ -127,8 +229,8 @@ std::vector<BoxInfo> PicoDet::detect(cv::Mat image, float score_threshold,
   return dets;
 }
 
-void PicoDet::decode_infer(const float *&cls_pred, const float *&dis_pred,
-                           int stride, float threshold,
+void PicoDet::decodeInfer(const float *&cls_pred, const float *&dis_pred,
+                           int stride, double threshold,
                            std::vector<std::vector<BoxInfo>> &results) {
   int feature_h = ceil((float)input_size_ / stride);
   int feature_w = ceil((float)input_size_ / stride);
@@ -153,7 +255,7 @@ void PicoDet::decode_infer(const float *&cls_pred, const float *&dis_pred,
   }
 }
 
-BoxInfo PicoDet::disPred2Bbox(const float *&dfl_det, int label, float score,
+BoxInfo PicoDet::disPred2Bbox(const float *&dfl_det, int label, double score,
                               int x, int y, int stride) {
   float ct_x = (x + 0.5) * stride;
   float ct_y = (y + 0.5) * stride;

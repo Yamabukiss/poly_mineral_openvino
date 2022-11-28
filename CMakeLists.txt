@@ -12,6 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
         pluginlib
         )
 
+generate_dynamic_reconfigure_options(
+        cfg/dynamic.cfg
+)
+
 find_package(OpenCV REQUIRED)
 find_package(InferenceEngine REQUIRED)
 find_package(ngraph REQUIRED)
@@ -27,7 +31,7 @@ include_directories(
 
 catkin_package(
         INCLUDE_DIRS include
-        CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs cv_bridge
+        CATKIN_DEPENDS roscpp dynamic_reconfigure std_msgs cv_bridge dynamic_reconfigure
         LIBRARIES ${PROJECT_NAME}
 )
 
@@ -35,6 +39,8 @@ catkin_package(
 #add_library(${PROJECT_NAME} src/main.cpp include/polygon_mineral/heal.h)
 #add_library(${PROJECT_NAME} src/picodet_openvino.cpp)
 add_executable(${PROJECT_NAME} src/picodet_openvino.cpp src/main.cpp)
+
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencfg)
 
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES}
