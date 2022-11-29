@@ -31,7 +31,7 @@ int activation_function_softmax(const _Tp *src, _Tp *dst, int length) {
 void PicoDet::onInit()
 {
     InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed4.xml");
+    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed.xml");
     // prepare input settings
     InferenceEngine::InputsDataMap inputs_map(model.getInputsInfo());
     input_name_ = inputs_map.begin()->first;
@@ -129,6 +129,12 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
         matched_points.clear();
         return result_points;
     }
+}
+
+void PicoDet::flipSolver(const cv::Point &solid_point)
+{
+    cv::Point img_center_point (719,539);
+
 }
 
 std::vector<BoxInfo> PicoDet::detect(cv::Mat image, double score_threshold,

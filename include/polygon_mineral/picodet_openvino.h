@@ -74,6 +74,8 @@ public:
 
     static void nms(std::vector<BoxInfo> &result, float nms_threshold);
 
+    void flipSolver(const cv::Point &solid_point);
+
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig> server_;
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig>::CallbackType callback_;
     std::vector<std::vector<cv::Point>> last_frame_points_vec_;
@@ -85,7 +87,7 @@ public:
     ros::NodeHandle nh_;
     ros::Subscriber img_subscriber_;
     ros::Publisher result_publisher_;
-    int num_class_ = 4;
+    int num_class_ = 6;
     int reg_max_ = 7;
     int image_size_ = 320;
 };
