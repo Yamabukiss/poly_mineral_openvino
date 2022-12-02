@@ -58,10 +58,10 @@ void PicoDet::onInit()
 
     img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
     result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
+    direction_publisher_ = nh_.advertise<std_msgs::Int8>("direction_publisher", 1);
 
     callback_ = boost::bind(&PicoDet::dynamicCallback, this, _1);
     server_.setCallback(callback_);
-
 }
 
 PicoDet::PicoDet() {}
@@ -131,10 +131,16 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
     }
 }
 
-void PicoDet::flipSolver(const cv::Point &solid_point)
+void PicoDet::flipSolver(int label)
 {
-    cv::Point img_center_point (719,539);
-
+    static std_msgs::Int8 direction_code;
+    if (label == 0) direction_code.data=0;
+    else if (label == 6)  direction_code.data=1;
+    else if (label == 7)  direction_code.data=2;
+    else if (label == 8)  direction_code.data=3;
+    else if (label == 4)  direction_code.data=4;
+    else if (label == 5)  direction_code.data=5;
+    direction_publisher_.publish(direction_code);
 }
 
 std::vector<BoxInfo> PicoDet::detect(cv::Mat image, double score_threshold,

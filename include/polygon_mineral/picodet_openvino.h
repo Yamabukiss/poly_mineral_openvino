@@ -10,7 +10,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <dynamic_reconfigure/server.h>
 #include <polygon_mineral/dynamicConfig.h>
-
+#include "std_msgs/Int8.h"
 
 typedef struct HeadInfo {
     std::string cls_layer;
@@ -74,7 +74,7 @@ public:
 
     static void nms(std::vector<BoxInfo> &result, float nms_threshold);
 
-    void flipSolver(const cv::Point &solid_point);
+    void flipSolver(int label);
 
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig> server_;
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig>::CallbackType callback_;
@@ -87,7 +87,8 @@ public:
     ros::NodeHandle nh_;
     ros::Subscriber img_subscriber_;
     ros::Publisher result_publisher_;
-    int num_class_ = 6;
+    ros::Publisher direction_publisher_;
+    int num_class_ = 9;
     int reg_max_ = 7;
     int image_size_ = 320;
 };

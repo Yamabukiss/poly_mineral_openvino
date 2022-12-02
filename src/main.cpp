@@ -1,11 +1,11 @@
 #include "polygon_mineral/picodet_openvino.h"
 
-int g_num=3000;
+int g_num=6000;
 
 
 void PicoDet::drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes) {
     cv::Mat image = bgr.clone();
-    std::string label_array[6]={"mineral","solid","exchanger","exchanger","barcode","barcode"};
+    std::string label_array[9]={"mineral","solid","exchanger","exchanger","barcode","barcode","90","180","270"};
     static int src_w = image.cols;
     static int src_h = image.rows;
     static float width_ratio = (float)src_w / (float)image_size_;
@@ -28,7 +28,7 @@ void PicoDet::drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes)
 
             std::vector<cv::Point> added_weights_points=pointAssignment(points_vec,last_frame_points_saver);
             last_frame_points_vec_.emplace_back(added_weights_points);
-
+            flipSolver(bbox.label);
             static cv::Scalar color = cv::Scalar(205,235,255);
             cv::line(image,added_weights_points[1],added_weights_points[2],color,3);
             cv::line(image,added_weights_points[2],added_weights_points[3],color,3);
@@ -59,7 +59,7 @@ void PicoDet::receiveFromCam(const sensor_msgs::ImageConstPtr& image)
     cv::Mat resized_img;
 
     resizeUniform(cv_image_->image, resized_img, cv::Size(image_size_, image_size_));
-//
+
     auto results = detect(resized_img, score_thresh_, nms_thresh_);
     drawBboxes(cv_image_->image, results);
 }
