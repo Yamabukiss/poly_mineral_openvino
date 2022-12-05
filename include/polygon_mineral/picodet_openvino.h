@@ -87,6 +87,7 @@ public:
     double score_thresh_;
     double delay_;
     cv::Mat_<double> camera_matrix_;
+    cv::Mat_<double> camera_matrix2_;
     cv::Mat_<double> distortion_coefficients_;
     cv::Mat_<double> rvec_;
     cv::Mat_<double> tvec_;
@@ -98,6 +99,7 @@ public:
     ros::Subscriber img_subscriber_;
     ros::Publisher result_publisher_;
     ros::Publisher direction_publisher_;
+    ros::Publisher pnp_publisher_;
     int num_class_ = 9;
     int reg_max_ = 7;
     int image_size_ = 320;

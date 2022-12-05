@@ -59,15 +59,21 @@ void PicoDet::onInit()
     img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
     result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
     direction_publisher_ = nh_.advertise<std_msgs::Int8>("direction_publisher", 1);
+    pnp_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("pnp_publisher", 1);
 
     callback_ = boost::bind(&PicoDet::dynamicCallback, this, _1);
     server_.setCallback(callback_);
-    object_points_.emplace_back(cv::Point3f(0,-125,125));
-    object_points_.emplace_back(cv::Point3f(0,125,125));
-    object_points_.emplace_back(cv::Point3f(0,125,-125));
-    object_points_.emplace_back(cv::Point3f(0,-125,-125));
-    distortion_coefficients_ =(cv::Mat_<double>(1,5)<<-0.569878, 0.643466, 0.022996, -0.002833, 0.000000);
-    camera_matrix_=(cv::Mat_<double>(3,3)<<2696.81492,0., 1068.45378,0.,2660.01501,298.62328,0.,0.,1.);
+    object_points_.emplace_back(cv::Point3f(0,-0.125,0.125));
+    object_points_.emplace_back(cv::Point3f(0,0.125,0.125));
+    object_points_.emplace_back(cv::Point3f(0,0.125,-0.125));
+    object_points_.emplace_back(cv::Point3f(0,-0.125,-0.125));
+    distortion_coefficients_ =(cv::Mat_<double>(1,5)<<-0.024703, 0.225683, -0.005382, 0.004417, 0.000000);
+    camera_matrix_=(cv::Mat_<double>(3,3)<<3609.52038,    0.     ,  786.0671 ,
+            0.     , 3611.70173,  515.14263,
+            0.     ,    0.     ,    1.     );
+    camera_matrix2_=(cv::Mat_<double>(4,4)<<3609.52038,    0.     ,  786.0671 ,0,
+            0.     , 3611.70173,  515.14263,0,
+            0.     ,    0.     ,    1.     ,0);
 }
 
 PicoDet::PicoDet() {}
@@ -148,22 +154,53 @@ void PicoDet::getPnP(const std::vector<cv::Point2f> &added_weights_points,int la
         image_points.emplace_back(added_weights_points[4]);
         cv::solvePnP(object_points_,image_points,camera_matrix_,distortion_coefficients_,rvec_,tvec_);
         cv::Mat r_mat = cv::Mat_<double>(3, 3);
+
+        cv::Mat pnp_mat = (cv::Mat_<double>(4,4)<<r_mat.at<double>(0, 0), r_mat.at<double>(0, 1), r_mat.at<double>(0, 2),tvec_.at<double>(0,0),
+        r_mat.at<double>(1, 0), r_mat.at<double>(1, 1), r_mat.at<double>(1, 2),tvec_.at<double>(0,1),
+        r_mat.at<double>(2, 0), r_mat.at<double>(2, 1), r_mat.at<double>(2, 2),tvec_.at<double>(0,2),
+                0,0,0,1);
+
         cv::Rodrigues(rvec_, rotate_mat_);
         tf::Matrix3x3 tf_rotate_matrix(r_mat.at<double>(0, 0), r_mat.at<double>(0, 1), r_mat.at<double>(0, 2),
                           r_mat.at<double>(1, 0), r_mat.at<double>(1, 1), r_mat.at<double>(1, 2),
                           r_mat.at<double>(2, 0), r_mat.at<double>(2, 1), r_mat.at<double>(2, 2));
-        tf::Vector3 tf_tvec(0, 0, 0.5);
-
+        tf::Vector3 tf_tvec(tvec_.at<double>(0,0), tvec_.at<double>(0,1), tvec_.at<double>(0,2));
         tf::Quaternion quaternion;
         double r;
         double p;
         double y;
+        static geometry_msgs::TwistStamped  test;
+//        cv::Mat imagePoint = cv::Mat::ones(3, 1, cv::DataType<double>::type); //u,v,1
+//        imagePoint.at<double>(0, 0) = added_weights_points[0].x;
+//        imagePoint.at<double>(1, 0) = added_weights_points[0].y;
+
+        cv::Mat imagePoint = cv::Mat::ones(3, 1, cv::DataType<double>::type);
+        imagePoint.at<double>(0, 0) = added_weights_points[0].x;
+        imagePoint.at<double>(1, 0) = added_weights_points[0].y;
+        cv::Mat tempMat, tempMat2;
+        double zConst = 0;
+        double s;
+        tempMat = rotate_mat_.inv() * camera_matrix_.inv() * imagePoint;
+        tempMat2 = rotate_mat_.inv() * tvec_;
+        s = zConst + tempMat2.at<double>(2, 0);
+        s /= tempMat.at<double>(2, 0);
+
+        cv::Mat project_mat = (rotate_mat_.inv()*camera_matrix_.inv()*imagePoint)-(rotate_mat_.inv()*tvec_);
+//        cv::Mat project_mat;
+//        project_mat=rotate_mat_.inv() * camera_matrix_.inv() * imagePoint-rotate_mat_.inv()*tvec_;
+        test.twist.linear.x=project_mat.at<double>(0,0);
+        test.twist.linear.y=project_mat.at<double>(1,0);
+        test.twist.linear.z=project_mat.at<double>(2,0);
         tf_rotate_matrix.getRPY(r, p, y);
         quaternion.setRPY(r, p, y);
+        test.twist.angular.x=r;
+        test.twist.angular.y=p;
+        test.twist.angular.z=y;
+        pnp_publisher_.publish(test);
         tf::Transform transform;
         transform.setRotation(quaternion);
         transform.setOrigin(tf_tvec);
-        tf::StampedTransform stamped_Transfor(transform, ros::Time::now(), "camera_optional_frame","target_ID:1");
+        tf::StampedTransform stamped_Transfor(transform, ros::Time::now(), "camera_optional_frame","exchanger");
         static tf::TransformBroadcaster broadcaster;
         broadcaster.sendTransform(stamped_Transfor);
         image_points.clear();
