@@ -56,7 +56,7 @@ void PicoDet::onInit()
     network_ = ie.LoadNetwork(model, "CPU",config);
     infer_request_ = network_.CreateInferRequest();
 
-    img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
+    img_subscriber_= nh_.subscribe("/image_rect", 1, &PicoDet::receiveFromCam,this);
     result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
     direction_publisher_ = nh_.advertise<std_msgs::Int8>("direction_publisher", 1);
     pnp_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("pnp_publisher", 1);
@@ -290,10 +290,14 @@ void PicoDet::decodeInfer(const float *&cls_pred, const float *&dis_pred,
 }
 
 void PicoDet::resizeUniform(cv::Mat &src, cv::Mat &dst, const cv::Size &dst_size){
-    int dst_w = dst_size.width;
-    int dst_h = dst_size.height;
-    dst = cv::Mat(cv::Size(dst_w, dst_h), CV_8UC3, cv::Scalar(0));
-    cv::resize(src,dst,cv::Size(dst_w,dst_h),0,0,1);
+    if (src.cols==dst_size.width && src.rows==dst_size.height) dst = src.clone();
+    else
+    {
+        int dst_w = dst_size.width;
+        int dst_h = dst_size.height;
+        dst = cv::Mat(cv::Size(dst_w, dst_h), CV_8UC3, cv::Scalar(0));
+        cv::resize(src,dst,cv::Size(dst_w,dst_h));
+    }
 }
 
 
