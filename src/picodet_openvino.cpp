@@ -62,6 +62,12 @@ void PicoDet::onInit()
 
     callback_ = boost::bind(&PicoDet::dynamicCallback, this, _1);
     server_.setCallback(callback_);
+    object_points_.emplace_back(cv::Point3f(0,-125,125));
+    object_points_.emplace_back(cv::Point3f(0,125,125));
+    object_points_.emplace_back(cv::Point3f(0,125,-125));
+    object_points_.emplace_back(cv::Point3f(0,-125,-125));
+    distortion_coefficients_ =(cv::Mat_<double>(1,5)<<-0.569878, 0.643466, 0.022996, -0.002833, 0.000000);
+    camera_matrix_=(cv::Mat_<double>(3,3)<<2696.81492,0., 1068.45378,0.,2660.01501,298.62328,0.,0.,1.);
 }
 
 PicoDet::PicoDet() {}
@@ -102,7 +108,7 @@ void PicoDet::preProcess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob) {
   }
 }
 
-std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &frame_points,const std::vector<std::vector<cv::Point>> &last_frame_points_saver)
+std::vector<cv::Point2f> PicoDet::pointAssignment(const std::vector<cv::Point2f> &frame_points,const std::vector<std::vector<cv::Point2f>> &last_frame_points_saver)
 {
 //    return frame_points;
     if (last_frame_points_saver.empty()) return frame_points;
@@ -116,10 +122,10 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
         auto min_iter = std::min_element(l2_distance_vec.begin(),l2_distance_vec.end());
         int min_index=std::distance(std::begin(l2_distance_vec), min_iter) ;
 
-        static std::vector<cv::Point> matched_points;
+        static std::vector<cv::Point2f> matched_points;
         matched_points=last_frame_points_saver[min_index];
 
-        std::vector<cv::Point> result_points;
+        std::vector<cv::Point2f> result_points;
         for (int i = 0;i < 5;i++)
         {
             cv::Point added_weights_point  (matched_points[i].x * (1-delay_) + frame_points[i].x * delay_ , matched_points[i].y * (1-delay_) + frame_points[i].y * delay_);
@@ -129,6 +135,39 @@ std::vector<cv::Point> PicoDet::pointAssignment(const std::vector<cv::Point> &fr
         matched_points.clear();
         return result_points;
     }
+}
+
+void PicoDet::getPnP(const std::vector<cv::Point2f> &added_weights_points,int label)
+{
+    if(label==2 || label==3)
+    {
+        static std::vector<cv::Point2f> image_points;
+        image_points.emplace_back(added_weights_points[1]);
+        image_points.emplace_back(added_weights_points[2]);
+        image_points.emplace_back(added_weights_points[3]);
+        image_points.emplace_back(added_weights_points[4]);
+        cv::solvePnP(object_points_,image_points,camera_matrix_,distortion_coefficients_,rvec_,tvec_);
+        cv::Mat r_mat = cv::Mat_<double>(3, 3);
+        cv::Rodrigues(rvec_, rotate_mat_);
+        tf::Matrix3x3 tf_rotate_matrix(r_mat.at<double>(0, 0), r_mat.at<double>(0, 1), r_mat.at<double>(0, 2),
+                          r_mat.at<double>(1, 0), r_mat.at<double>(1, 1), r_mat.at<double>(1, 2),
+                          r_mat.at<double>(2, 0), r_mat.at<double>(2, 1), r_mat.at<double>(2, 2));
+        tf::Vector3 tf_tvec(0, 0, 0.5);
+
+        tf::Quaternion quaternion;
+        double r;
+        double p;
+        double y;
+        tf_rotate_matrix.getRPY(r, p, y);
+        quaternion.setRPY(r, p, y);
+        tf::Transform transform;
+        transform.setRotation(quaternion);
+        transform.setOrigin(tf_tvec);
+        tf::StampedTransform stamped_Transfor(transform, ros::Time::now(), "camera_optional_frame","target_ID:1");
+        static tf::TransformBroadcaster broadcaster;
+        broadcaster.sendTransform(stamped_Transfor);
+        image_points.clear();
+    } else return;
 }
 
 void PicoDet::flipSolver(int label)

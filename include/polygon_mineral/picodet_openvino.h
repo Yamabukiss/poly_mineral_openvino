@@ -11,6 +11,8 @@
 #include <dynamic_reconfigure/server.h>
 #include <polygon_mineral/dynamicConfig.h>
 #include "std_msgs/Int8.h"
+#include "tf/tf.h"
+#include "tf/transform_broadcaster.h"
 
 typedef struct HeadInfo {
     std::string cls_layer;
@@ -67,7 +69,7 @@ public:
     void decodeInfer(const float *&cls_pred, const float *&dis_pred, int stride,
                      double threshold,
                      std::vector<std::vector<BoxInfo>> &results);
-    std::vector<cv::Point> pointAssignment(const std::vector<cv::Point> &frame_points,const std::vector<std::vector<cv::Point>> &last_frame_points_saver);
+    std::vector<cv::Point2f> pointAssignment(const std::vector<cv::Point2f> &frame_points,const std::vector<std::vector<cv::Point2f>> &last_frame_points_saver);
 
     BoxInfo disPred2Bbox(const float *&dfl_det, int label, double score, int x,
                          int y, int stride);
@@ -76,12 +78,20 @@ public:
 
     void flipSolver(int label);
 
+    void getPnP(const std::vector<cv::Point2f> &added_weights_points,int label);
+
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig> server_;
     dynamic_reconfigure::Server<polygon_mineral::dynamicConfig>::CallbackType callback_;
-    std::vector<std::vector<cv::Point>> last_frame_points_vec_;
+    std::vector<std::vector<cv::Point2f>> last_frame_points_vec_;
     double nms_thresh_;
     double score_thresh_;
     double delay_;
+    cv::Mat_<double> camera_matrix_;
+    cv::Mat_<double> distortion_coefficients_;
+    cv::Mat_<double> rvec_;
+    cv::Mat_<double> tvec_;
+    cv::Mat_<double> rotate_mat_;
+    std::vector<cv::Point3f> object_points_;
     std::string input_name_;
     cv_bridge::CvImagePtr cv_image_;
     ros::NodeHandle nh_;

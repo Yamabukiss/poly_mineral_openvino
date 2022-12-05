@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
         cv_bridge
         nodelet
         pluginlib
+        tf
         )
 
 generate_dynamic_reconfigure_options(
