@@ -67,13 +67,10 @@ void PicoDet::onInit()
     object_points_.emplace_back(cv::Point3f(0,0.125,0.125));
     object_points_.emplace_back(cv::Point3f(0,0.125,-0.125));
     object_points_.emplace_back(cv::Point3f(0,-0.125,-0.125));
-    distortion_coefficients_ =(cv::Mat_<double>(1,5)<<-0.024703, 0.225683, -0.005382, 0.004417, 0.000000);
-    camera_matrix_=(cv::Mat_<double>(3,3)<<3609.52038,    0.     ,  786.0671 ,
-            0.     , 3611.70173,  515.14263,
-            0.     ,    0.     ,    1.     );
-    camera_matrix2_=(cv::Mat_<double>(4,4)<<3609.52038,    0.     ,  786.0671 ,0,
-            0.     , 3611.70173,  515.14263,0,
-            0.     ,    0.     ,    1.     ,0);
+    distortion_coefficients_ =(cv::Mat_<double>(1,5)<<-0.066682, 0.115005, -0.003074, 0.003943, 0.000000);
+    camera_matrix_=(cv::Mat_<double>(3,3)<<402.55567,   0.     , 166.94168,
+            0.     , 536.61914, 164.10448,
+            0.     ,   0.     ,   1.     );
 }
 
 PicoDet::PicoDet() {}
@@ -170,29 +167,12 @@ void PicoDet::getPnP(const std::vector<cv::Point2f> &added_weights_points,int la
         double p;
         double y;
         static geometry_msgs::TwistStamped  test;
-//        cv::Mat imagePoint = cv::Mat::ones(3, 1, cv::DataType<double>::type); //u,v,1
-//        imagePoint.at<double>(0, 0) = added_weights_points[0].x;
-//        imagePoint.at<double>(1, 0) = added_weights_points[0].y;
 
-        cv::Mat imagePoint = cv::Mat::ones(3, 1, cv::DataType<double>::type);
-        imagePoint.at<double>(0, 0) = added_weights_points[0].x;
-        imagePoint.at<double>(1, 0) = added_weights_points[0].y;
-        cv::Mat tempMat, tempMat2;
-        double zConst = 0;
-        double s;
-        tempMat = rotate_mat_.inv() * camera_matrix_.inv() * imagePoint;
-        tempMat2 = rotate_mat_.inv() * tvec_;
-        s = zConst + tempMat2.at<double>(2, 0);
-        s /= tempMat.at<double>(2, 0);
-
-        cv::Mat project_mat = (rotate_mat_.inv()*camera_matrix_.inv()*imagePoint)-(rotate_mat_.inv()*tvec_);
-//        cv::Mat project_mat;
-//        project_mat=rotate_mat_.inv() * camera_matrix_.inv() * imagePoint-rotate_mat_.inv()*tvec_;
-        test.twist.linear.x=project_mat.at<double>(0,0);
-        test.twist.linear.y=project_mat.at<double>(1,0);
-        test.twist.linear.z=project_mat.at<double>(2,0);
+        test.twist.linear.x=tvec_.at<double>(0,0);
+        test.twist.linear.y=tvec_.at<double>(0,1);
+        test.twist.linear.z=tvec_.at<double>(0,2);
         tf_rotate_matrix.getRPY(r, p, y);
-        quaternion.setRPY(r, p, y);
+        quaternion.setRPY(y, p, r);
         test.twist.angular.x=r;
         test.twist.angular.y=p;
         test.twist.angular.z=y;
