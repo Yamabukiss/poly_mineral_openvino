@@ -31,7 +31,7 @@ int activation_function_softmax(const _Tp *src, _Tp *dst, int length) {
 void PicoDet::onInit()
 {
     InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed.xml");
+    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed88.xml");
     // prepare input settings
     InferenceEngine::InputsDataMap inputs_map(model.getInputsInfo());
     input_name_ = inputs_map.begin()->first;
@@ -56,6 +56,7 @@ void PicoDet::onInit()
     network_ = ie.LoadNetwork(model, "CPU",config);
     infer_request_ = network_.CreateInferRequest();
 
+//    img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
     img_subscriber_= nh_.subscribe("/image_rect", 1, &PicoDet::receiveFromCam,this);
     result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
     direction_publisher_ = nh_.advertise<std_msgs::Int8>("direction_publisher", 1);

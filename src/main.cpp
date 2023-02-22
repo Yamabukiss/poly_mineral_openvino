@@ -1,11 +1,11 @@
 #include "polygon_mineral/picodet_openvino.h"
 
-int g_num=6000;
+int g_num=8100;
 
 
 void PicoDet::drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes) {
     cv::Mat image = bgr.clone();
-    std::string label_array[9]={"mineral","solid","exchanger","exchanger","barcode","barcode","90","180","270"};
+    std::string label_array[8]={"mineral","solid","exchanger","exchanger","0"   ,"90","180","270"};
     static int src_w = image.cols;
     static int src_h = image.rows;
     static float width_ratio = (float)src_w / (float)image_size_;
@@ -17,6 +17,7 @@ void PicoDet::drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes)
         last_frame_points_vec_.clear();
         for (size_t i = 0; i < bboxes.size(); i++) {
             const BoxInfo &bbox = bboxes[i];
+            if (bbox.label==1) continue;
             cv::Point2f center ((bbox.x1+bbox.x2+bbox.x3+bbox.x4)/4*width_ratio,(bbox.y1+bbox.y2+bbox.y3+bbox.y4)/4*height_ratio);
 
             std::vector<cv::Point2f> points_vec;

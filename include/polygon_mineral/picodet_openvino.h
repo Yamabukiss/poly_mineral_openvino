@@ -100,7 +100,7 @@ public:
     ros::Publisher result_publisher_;
     ros::Publisher direction_publisher_;
     ros::Publisher pnp_publisher_;
-    int num_class_ = 9;
+    int num_class_ = 8;
     int reg_max_ = 7;
     int image_size_ = 320;
 };
