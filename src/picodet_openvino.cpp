@@ -151,12 +151,6 @@ void PicoDet::getPnP(const std::vector<cv::Point2f> &added_weights_points,int la
         image_points.emplace_back(added_weights_points[3]);
         image_points.emplace_back(added_weights_points[4]);
         cv::solvePnP(object_points_,image_points,camera_matrix_,distortion_coefficients_,rvec_,tvec_);
-        cv::Mat r_mat = cv::Mat_<double>(3, 3);
-
-        cv::Mat pnp_mat = (cv::Mat_<double>(4,4)<<r_mat.at<double>(0, 0), r_mat.at<double>(0, 1), r_mat.at<double>(0, 2),tvec_.at<double>(0,0),
-        r_mat.at<double>(1, 0), r_mat.at<double>(1, 1), r_mat.at<double>(1, 2),tvec_.at<double>(0,1),
-        r_mat.at<double>(2, 0), r_mat.at<double>(2, 1), r_mat.at<double>(2, 2),tvec_.at<double>(0,2),
-                0,0,0,1);
 
         cv::Rodrigues(rvec_, rotate_mat_);
         tf::Matrix3x3 tf_rotate_matrix(r_mat.at<double>(0, 0), r_mat.at<double>(0, 1), r_mat.at<double>(0, 2),
