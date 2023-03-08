@@ -9,7 +9,7 @@
 #include "ros/ros.h"
 #include <cv_bridge/cv_bridge.h>
 #include <dynamic_reconfigure/server.h>
-#include <polygon_mineral/dynamicConfig.h>
+#include <polygon_tag/dynamicConfig.h>
 #include "std_msgs/Int8.h"
 #include "tf/tf.h"
 #include "tf/transform_broadcaster.h"
@@ -62,7 +62,7 @@ public:
 
     void drawBboxes(const cv::Mat &bgr, const std::vector<BoxInfo> &bboxes);
 
-    void dynamicCallback(polygon_mineral::dynamicConfig &config);
+    void dynamicCallback(polygon_tag::dynamicConfig &config);
 
     void preProcess(cv::Mat &image, InferenceEngine::Blob::Ptr &blob);
 
@@ -80,12 +80,12 @@ public:
 
     void getPnP(const std::vector<cv::Point2f> &added_weights_points,int label);
 
-    dynamic_reconfigure::Server<polygon_mineral::dynamicConfig> server_;
-    dynamic_reconfigure::Server<polygon_mineral::dynamicConfig>::CallbackType callback_;
+//    dynamic_reconfigure::Server<polygon_tag::dynamicConfig> server_;
+//    dynamic_reconfigure::Server<polygon_tag::dynamicConfig>::CallbackType callback_;
     std::vector<std::vector<cv::Point2f>> last_frame_points_vec_;
-    double nms_thresh_;
-    double score_thresh_;
-    double delay_;
+//    double nms_thresh_;
+//    double score_thresh_;
+//    double delay_;
     cv::Mat_<double> camera_matrix_;
     cv::Mat_<double> camera_matrix2_;
     cv::Mat_<double> distortion_coefficients_;
@@ -100,7 +100,7 @@ public:
     ros::Publisher result_publisher_;
     ros::Publisher direction_publisher_;
     ros::Publisher pnp_publisher_;
-    int num_class_ = 8;
+    int num_class_ = 4;
     int reg_max_ = 7;
     int image_size_ = 320;
 };
