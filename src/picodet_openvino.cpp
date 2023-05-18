@@ -1,4 +1,4 @@
-#include "polygon_mineral/picodet_openvino.h"
+#include "polygon_tag/picodet_openvino.h"
 
 
 inline float fast_exp(float x) {
@@ -31,7 +31,7 @@ int activation_function_softmax(const _Tp *src, _Tp *dst, int length) {
 void PicoDet::onInit()
 {
     InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed88.xml");
+    InferenceEngine::CNNNetwork model = ie.ReadNetwork("/home/yamabuki/Downloads/tag_picodet_s_processed.xml");
     // prepare input settings
     InferenceEngine::InputsDataMap inputs_map(model.getInputsInfo());
     input_name_ = inputs_map.begin()->first;
@@ -57,13 +57,13 @@ void PicoDet::onInit()
     infer_request_ = network_.CreateInferRequest();
 
 //    img_subscriber_= nh_.subscribe("/hk_camera/image_raw", 1, &PicoDet::receiveFromCam,this);
-    img_subscriber_= nh_.subscribe("/image_rect", 1, &PicoDet::receiveFromCam,this);
+    img_subscriber_= nh_.subscribe("/stereo_inertial_publisher/color/image", 1, &PicoDet::receiveFromCam,this);
     result_publisher_ = nh_.advertise<sensor_msgs::Image>("result_publisher", 1);
     direction_publisher_ = nh_.advertise<std_msgs::Int8>("direction_publisher", 1);
     pnp_publisher_ = nh_.advertise<geometry_msgs::TwistStamped>("pnp_publisher", 1);
 
-    callback_ = boost::bind(&PicoDet::dynamicCallback, this, _1);
-    server_.setCallback(callback_);
+//    callback_ = boost::bind(&PicoDet::dynamicCallback, this, _1);
+//    server_.setCallback(callback_);
     object_points_.emplace_back(cv::Point3f(0,-0.125,0.125));
     object_points_.emplace_back(cv::Point3f(0,0.125,0.125));
     object_points_.emplace_back(cv::Point3f(0,0.125,-0.125));
@@ -76,13 +76,13 @@ void PicoDet::onInit()
 
 PicoDet::PicoDet() {}
 
-void PicoDet::dynamicCallback(polygon_mineral::dynamicConfig &config)
-{
-    nms_thresh_=config.nms_thresh;
-    score_thresh_=config.score_thresh;
-    delay_=config.delay;
-    ROS_INFO("Seted Complete");
-}
+//void PicoDet::dynamicCallback(polygon_tag::dynamicConfig &config)
+//{
+//    nms_thresh_=config.nms_thresh;
+//    score_thresh_=config.score_thresh;
+//    delay_=config.delay;
+//    ROS_INFO("Seted Complete");
+//}
 
 
 PicoDet::~PicoDet() {}
@@ -130,6 +130,7 @@ std::vector<cv::Point2f> PicoDet::pointAssignment(const std::vector<cv::Point2f>
         matched_points=last_frame_points_saver[min_index];
 
         std::vector<cv::Point2f> result_points;
+        double delay_=0.5;
         for (int i = 0;i < 5;i++)
         {
             cv::Point added_weights_point  (matched_points[i].x * (1-delay_) + frame_points[i].x * delay_ , matched_points[i].y * (1-delay_) + frame_points[i].y * delay_);
@@ -153,9 +154,9 @@ void PicoDet::getPnP(const std::vector<cv::Point2f> &added_weights_points,int la
         cv::solvePnP(object_points_,image_points,camera_matrix_,distortion_coefficients_,rvec_,tvec_);
 
         cv::Rodrigues(rvec_, rotate_mat_);
-        tf::Matrix3x3 tf_rotate_matrix(r_mat.at<double>(0, 0), r_mat.at<double>(0, 1), r_mat.at<double>(0, 2),
-                          r_mat.at<double>(1, 0), r_mat.at<double>(1, 1), r_mat.at<double>(1, 2),
-                          r_mat.at<double>(2, 0), r_mat.at<double>(2, 1), r_mat.at<double>(2, 2));
+        tf::Matrix3x3 tf_rotate_matrix(rotate_mat_.at<double>(0, 0), rotate_mat_.at<double>(0, 1), rotate_mat_.at<double>(0, 2),
+                          rotate_mat_.at<double>(1, 0), rotate_mat_.at<double>(1, 1), rotate_mat_.at<double>(1, 2),
+                          rotate_mat_.at<double>(2, 0), rotate_mat_.at<double>(2, 1), rotate_mat_.at<double>(2, 2));
         tf::Vector3 tf_tvec(tvec_.at<double>(0,0), tvec_.at<double>(0,1), tvec_.at<double>(0,2));
         tf::Quaternion quaternion;
         double r;

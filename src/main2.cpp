@@ -41,7 +41,7 @@ void decode(const float* &net_pred)
 int main()
 {
     InferenceEngine::Core ie;
-    InferenceEngine::CNNNetwork network = ie.ReadNetwork("/home/yamabuki/Downloads/picodet_s_processed.xml");
+    InferenceEngine::CNNNetwork network = ie.ReadNetwork("/home/yamabuki/Downloads/s_320.xml");
     std::string input_name = network.getInputsInfo().begin()->first;
     std::string output_name = network.getOutputsInfo().begin()->first;
     InferenceEngine::DataPtr output_info = network.getOutputsInfo().begin()->second;
